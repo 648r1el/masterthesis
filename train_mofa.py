@@ -7,6 +7,15 @@ def set_parser():
     parser = ArgumentParser()
     parser.add_argument('-g', '--groups', default=None, type=str,
                         help='The name of the groups which shall be specified. If not given, no groups are specified')
+    parser.add_argument('-v', '--variance-filter', default=0, type=float,
+                        help='Only consider columns with the given amount of variance')
+    parser.add_argument('-l', '--log-base', default=None, type=str,
+                        help='Indicates the log base of the normalized data of transcriptomics and mirna expression '
+                             'if it was calculated to log odds. The data is then reversed to its original normalized '
+                             'count data to perform the analysis. Log-odds are '
+                             'usually calculated with the base 2, but any other number can be parsed; the Eulerian '
+                             'number must be parsed as "e". If the data is already normalized, this flag can be '
+                             'ignored.')
     return parser
 
 if __name__ == '__main__':
@@ -17,18 +26,29 @@ if __name__ == '__main__':
     num_omics = 4
 
     # read the data into separate variables
-    mirna_data = pd.read_csv('mofa_mirna.tsv', sep='\t', index_col=0)#.join(
-    #   pd.read_csv('mofa_mirna.tsv', sep='\t', index_col=0)
-    #)
-    lncrna_data = pd.read_csv('mofa_lncrna.tsv', sep='\t', index_col=0)#.join(
-        #   pd.read_csv('mofa_lncrna.tsv', sep='\t', index_col=0)
-    #)
-    methyl_data = pd.read_csv('mofa_dna_methylation.tsv', sep='\t', index_col=0).dropna(axis=0, how='all')#.join(
-    #    pd.read_csv('mofa_dna_methylation.tsv', sep='\t', index_col=0)
-    #).dropna(axis=0, how='all')
-    rnaseq_data = pd.read_csv('mofa_rna_seq.tsv', sep='\t', index_col=0)#.join(
-        #    pd.read_csv('mofa_rna_seq.tsv', sep='\t', index_col=0)
-    #)
+    print('Reading the input data')
+    mirna_data = pd.read_csv('Input/mofa_coad_mirna.tsv', sep='\t', index_col=0)
+    lncrna_data = pd.read_csv('Input/mofa_coad_lncrna.tsv', sep='\t', index_col=0)
+    methyl_data = pd.read_csv('Input/mofa_coad_dna_methylation.tsv.bz2', sep='\t', index_col=0).dropna(axis=0, how='all')
+    rnaseq_data = pd.read_csv('Input/mofa_coad_rna_seq.tsv.bz2', sep='\t', index_col=0)
+    print('Data read successfully')
+
+    if args.log_base is not None:
+        if args.log_base == 'e':
+            mirna_data = np.exp(mirna_data) - 1
+            lncrna_data = np.exp(lncrna_data) - 1
+            rnaseq_data = np.exp(rnaseq_data) - 1
+        else:
+            log_base = int(args.log_base)
+            mirna_data = np.power(log_base, mirna_data) - 1
+            lncrna_data = np.power(log_base, lncrna_data) - 1
+            rnaseq_data = np.power(log_base, rnaseq_data) - 1
+
+    print('Filter by variance if variance is not 0')
+    mirna_data = mirna_data.loc[mirna_data.var(axis=1) >= args.variance_filter]
+    lncrna_data = lncrna_data.loc[lncrna_data.std(axis=1) >= args.variance_filter]
+    methyl_data = methyl_data.loc[methyl_data.std(axis=1) >= args.variance_filter]
+    rnaseq_data = rnaseq_data.loc[rnaseq_data.std(axis=1) >= args.variance_filter]
 
     # filter the number of samples such that only patients are used which occur in all omics layers
     mirna_samples = {*mirna_data.columns}
@@ -42,7 +62,7 @@ if __name__ == '__main__':
     sample_names = []
 
     groups = pd.Series(['a'] * len(columns))
-    save_file = 'model_coad_4_omics_fpkm_2_percent_r_square.hdf5'
+    save_file = 'Trained_models/model_coad_4_omics_fpkm_ucsc_05_var.hdf5'
 
     if args.groups is not None:
         """
@@ -98,7 +118,7 @@ if __name__ == '__main__':
     )
     ent.set_train_options(
         convergence_mode='fast',
-        dropR2=0.02,
+        dropR2=0.001,
         gpu_mode=False,
         seed=1
     )
