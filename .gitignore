@@ -1,0 +1,8 @@
+.ipynb_checkpoints/*
+.venv/*
+.idea/
+.DS_Store
+Input/*
+Trained_models/*
+MOFA_*
+Jupyter_outputs/*
