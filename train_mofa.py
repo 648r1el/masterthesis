@@ -9,6 +9,12 @@ def set_parser():
                         help='The name of the groups which shall be specified. If not given, no groups are specified')
     parser.add_argument('-v', '--variance-filter', default=0, type=float,
                         help='Only consider columns with the given amount of variance')
+    parser.add_argument('-c', '--cancer-type', default='coad', type=str, help='The name of the caner type to investigate')
+    parser.add_argument('-n', '--num-omics', default=4, type=int, help='Number of omics layers')
+    parser.add_argument('-o', '--outfile-suffix', default='_fpkm_ucsc', type=str,
+                        help='The suffix of the output file to specify the output a bit more. E.g., the default suffix '
+                             'refers to the used normalization method (FPKM) and the source of the dataset (UCSC). '
+                             'You can specify the name of the output file in any way you want')
     parser.add_argument('-l', '--log-base', default=None, type=str,
                         help='Indicates the log base of the normalized data of transcriptomics and mirna expression '
                              'if it was calculated to log odds. The data is then reversed to its original normalized '
@@ -23,14 +29,16 @@ if __name__ == '__main__':
     p = set_parser()
     args = p.parse_args()
 
-    num_omics = 4
+    num_omics = args.num_omics
 
     # read the data into separate variables
+    # this section is hardcoded, but can be easily augmented or reduced by adding or removing a line with the respective
+    # data.
     print('Reading the input data')
-    mirna_data = pd.read_csv('Input/mofa_coad_mirna.tsv', sep='\t', index_col=0)
-    lncrna_data = pd.read_csv('Input/mofa_coad_lncrna.tsv', sep='\t', index_col=0)
-    methyl_data = pd.read_csv('Input/mofa_coad_dna_methylation.tsv.bz2', sep='\t', index_col=0).dropna(axis=0, how='all')
-    rnaseq_data = pd.read_csv('Input/mofa_coad_rna_seq.tsv.bz2', sep='\t', index_col=0)
+    mirna_data = pd.read_csv(f'Input/mofa_{args.cancer_type}_mirna.tsv', sep='\t', index_col=0)
+    lncrna_data = pd.read_csv(f'Input/mofa_{args.cancer_type}_lncrna.tsv', sep='\t', index_col=0)
+    methyl_data = pd.read_csv(f'Input/mofa_{args.cancer_type}_dna_methylation.tsv.bz2', sep='\t', index_col=0).dropna(axis=0, how='all')
+    rnaseq_data = pd.read_csv(f'Input/mofa_{args.cancer_type}_rna_seq.tsv.bz2', sep='\t', index_col=0)
     print('Data read successfully')
 
     if args.log_base is not None:
@@ -62,14 +70,11 @@ if __name__ == '__main__':
     sample_names = []
 
     groups = pd.Series(['a'] * len(columns))
-    save_file = 'Trained_models/model_coad_4_omics_fpkm_ucsc_05_var.hdf5'
+    # define parameters for the name of the output file
+    suffix = f'_{args.outfile_suffix}' if args.outfile_suffix is not None else ''
+    save_file = f'Trained_models/model_{args.cancer_type}_{num_omics}_omics_var_{args.variance_filter}{args.outfile_suffix}.hdf5'
 
     if args.groups is not None:
-        """
-        group_data = pd.concat([pd.read_csv('mofa_read_groups.tsv', sep='\t', index_col=0),
-            pd.read_csv('mofa_groups.tsv', sep='\t', index_col=0)], axis=0
-        )
-        """
         group_data = pd.read_csv('mofa_coad_groups.tsv', sep='\t', index_col=0)
         columns = [*{*group_data.index} & {*columns}]
         groups = group_data.loc[columns, args.groups]  # columns corresponds to the samples, which are the index of groups
