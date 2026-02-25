@@ -2,6 +2,7 @@ from mofapy2.run.entry_point import entry_point
 import pandas as pd
 import numpy as np
 from argparse import ArgumentParser
+from pathlib import Path
 
 def set_parser():
     parser = ArgumentParser()
@@ -71,6 +72,8 @@ if __name__ == '__main__':
 
     groups = pd.Series(['a'] * len(columns))
     # define parameters for the name of the output file
+    if not Path('Trained_models').exists():
+        Path('Trained_models').mkdir(parents=True, exist_ok=True)
     suffix = f'_{args.outfile_suffix}' if args.outfile_suffix is not None else ''
     save_file = f'Trained_models/model_{args.cancer_type}_{num_omics}_omics_var_{args.variance_filter}{args.outfile_suffix}.hdf5'
 
