@@ -54,8 +54,6 @@ The mentioned files correspond to the recommended order of executing this versio
 3. Calculate the SHAP values for each experiment run
 4. Evaluate the results with the downstream analysis
 
-## Citation
-
 ## 📚 Citation
 
 If you use this repository in your research, please cite:
